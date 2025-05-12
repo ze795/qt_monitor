@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QTableWidget, QTableWidg
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject
 from PyQt5.QtGui import QColor
 
-from atr import ATRCalculator
+from data import ATRCalculator
 from typing import List, Dict, Tuple, Optional
 
 # Futures data structure
@@ -98,7 +98,7 @@ class DataManager(QObject):
     def monitoringLoop(self):
         while not self.stopRequested:
             for item in self.futuresItems:
-                # Update current price
+                # Update current price and datatable
                 item.currentPrice = self.getRealTimePrice(item.name)
 
                 # Price monitoring
@@ -109,7 +109,7 @@ class DataManager(QObject):
                 elif item.atrMonitorEnabled:
                     # atr = ATRCalculator.calculateATR(item.name)
                     # Judge based on ATR value and direction
-                    atrCondition = ATRCalculator.cond(item.symbol, item.atrDirection)
+                    atrCondition = ATRCalculator.atr_cond(item.symbol, item.atrDirection)
 
                     if atrCondition:
                         item.status = "ATR Alert"

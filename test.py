@@ -9,12 +9,15 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QTableWidget, QTableWidg
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject
 from PyQt5.QtGui import QColor
 
+from atr import ATRCalculator
+from typing import List, Dict, Tuple, Optional
 
 # Futures data structure
 class FuturesItem:
-    def __init__(self, id, name):
+    def __init__(self, id, name, symbol="default"):
         self.id = id
         self.name = name
+        self.symbol = symbol
         self.currentPrice = 0.0
         self.monitorPrice = 0.0
         self.priceMonitorEnabled = False
@@ -24,14 +27,6 @@ class FuturesItem:
         self.patternMonitorEnabled = False
         self.status = "Normal"
         self.statusColor = Qt.black
-
-# ATR Calculation Class (To be implemented by user)
-class ATRCalculator:
-    @staticmethod
-    def calculateATR(symbol, period=14):
-        # Implement ATR calculation logic here
-        # Return a random value for demonstration
-        return random.randint(0, 100) / 10.0
 
 # Pattern Recognition Class (To be implemented by user)
 class PatternRecognizer:
@@ -47,7 +42,7 @@ class DataManager(QObject):
 
     def __init__(self):
         super().__init__()
-        self.futuresItems = []
+        self.futuresItems: List[FuturesItem] = []
         self.stopRequested = False
         self.monitoringThread = None
 
@@ -97,7 +92,8 @@ class DataManager(QObject):
     def getRealTimePrice(self, symbol):
         # Actual application should use akshare to get real price
         # Using random numbers to simulate price fluctuations here
-        return 3000 + random.randint(0, 5000) / 10.0
+        # return 3000 + random.randint(0, 5000) / 10.0
+        return 3442
 
     def monitoringLoop(self):
         while not self.stopRequested:
@@ -111,10 +107,9 @@ class DataManager(QObject):
                     item.statusColor = Qt.red
                 # ATR monitoring
                 elif item.atrMonitorEnabled:
-                    atr = ATRCalculator.calculateATR(item.name)
+                    # atr = ATRCalculator.calculateATR(item.name)
                     # Judge based on ATR value and direction
-                    atrCondition = (item.atrDirection == "Long" and atr > 20.0) or \
-                                  (item.atrDirection == "Short" and atr < 10.0)
+                    atrCondition = ATRCalculator.cond(item.symbol, item.atrDirection)
 
                     if atrCondition:
                         item.status = "ATR Alert"
@@ -202,6 +197,7 @@ class MainWindow(QMainWindow):
 
         # Add to layout
         mainLayout.addWidget(self.tableWidget)
+        self.tableWidget.setSelectionMode(QTableWidget.NoSelection)
 
         # Connect data update signal
         self.dataManager.dataUpdated.connect(self.updateTableData)
@@ -212,9 +208,12 @@ class MainWindow(QMainWindow):
     def createTable(self):
         self.tableWidget = QTableWidget(self)
         self.tableWidget.setColumnCount(10)
-        self.tableWidget.setHorizontalHeaderLabels(["ID", "Symbol", "Current Price", "Monitor Price", "Price Monitor",
+        # self.tableWidget.setHorizontalHeaderLabels(["ID", "Symbol", "Current Price", "Monitor Price", "Price Monitor",
+        #                                       "ATR Direction", "ATR Monitor", "Pattern Direction", "Pattern Monitor",
+        #                                       "Status"])
+        self.tableWidget.setHorizontalHeaderLabels(["Status", "Symbol", "Current Price", "Monitor Price", "Price Monitor",
                                               "ATR Direction", "ATR Monitor", "Pattern Direction", "Pattern Monitor",
-                                              "Status"])
+                                              "ID"])
 
         # Set table properties
         header = self.tableWidget.horizontalHeader()
@@ -227,9 +226,10 @@ class MainWindow(QMainWindow):
 
         # Initialize table content
         for i, item in enumerate(self.dataManager.getFuturesItems()):
-            # ID
-            idItem = QTableWidgetItem(str(item.id))
-            self.tableWidget.setItem(i, 0, idItem)
+            # Status
+            statusItem = QTableWidgetItem(item.status)
+            statusItem.setForeground(item.statusColor)
+            self.tableWidget.setItem(i, 0, statusItem)
 
             # Symbol
             nameItem = QTableWidgetItem(item.name)
@@ -276,10 +276,10 @@ class MainWindow(QMainWindow):
             self.tableWidget.setCellWidget(i, 8, patternMonitorCheck)
             patternMonitorCheck.stateChanged.connect(lambda state, row=i: self.onPatternMonitorChanged(state, row))
 
-            # Status
-            statusItem = QTableWidgetItem(item.status)
-            statusItem.setForeground(item.statusColor)
-            self.tableWidget.setItem(i, 9, statusItem)
+            # ID
+            idItem = QTableWidgetItem(str(item.id))
+            self.tableWidget.setItem(i, 9, idItem)
+
 
     def onMonitorPriceChanged(self, text, row):
         try:
@@ -311,7 +311,7 @@ class MainWindow(QMainWindow):
                 priceItem.setText("{0:.2f}".format(item.currentPrice))
 
             # Update current status
-            statusItem = self.tableWidget.item(i, 9)
+            statusItem = self.tableWidget.item(i, 0)
             if statusItem:
                 statusItem.setText(item.status)
                 statusItem.setForeground(item.statusColor)

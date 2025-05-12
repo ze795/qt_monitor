@@ -1,0 +1,332 @@
+import sys
+import time
+import threading
+import random
+import datetime
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QTableWidget, QTableWidgetItem, QPushButton,
+                            QVBoxLayout, QHBoxLayout, QWidget, QLabel, QLineEdit, QComboBox,
+                            QMessageBox, QCheckBox, QDialog, QHeaderView, QAbstractItemView)
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject
+from PyQt5.QtGui import QColor
+
+
+# Futures data structure
+class FuturesItem:
+    def __init__(self, id, name):
+        self.id = id
+        self.name = name
+        self.currentPrice = 0.0
+        self.monitorPrice = 0.0
+        self.priceMonitorEnabled = False
+        self.atrDirection = "Long"  # "Long" or "Short"
+        self.atrMonitorEnabled = False
+        self.patternDirection = "Long"  # "Long" or "Short"
+        self.patternMonitorEnabled = False
+        self.status = "Normal"
+        self.statusColor = Qt.black
+
+# ATR Calculation Class (To be implemented by user)
+class ATRCalculator:
+    @staticmethod
+    def calculateATR(symbol, period=14):
+        # Implement ATR calculation logic here
+        # Return a random value for demonstration
+        return random.randint(0, 100) / 10.0
+
+# Pattern Recognition Class (To be implemented by user)
+class PatternRecognizer:
+    @staticmethod
+    def recognizePattern(symbol, direction):
+        # Implement pattern recognition logic here
+        # Return random True or False for demonstration
+        return random.choice([True, False])
+
+# Data Manager Class
+class DataManager(QObject):
+    dataUpdated = pyqtSignal()
+
+    def __init__(self):
+        super().__init__()
+        self.futuresItems = []
+        self.stopRequested = False
+        self.monitoringThread = None
+
+    def initFuturesItems(self):
+        self.futuresItems = []
+        self.futuresItems.append(FuturesItem(0, "PVC Continuous"))
+        self.futuresItems.append(FuturesItem(1, "Palm Oil Continuous"))
+        self.futuresItems.append(FuturesItem(2, "Soybean No.2 Continuous"))
+        self.futuresItems.append(FuturesItem(3, "Soybean Meal Continuous"))
+        self.futuresItems.append(FuturesItem(4, "Iron Ore Continuous"))
+        self.futuresItems.append(FuturesItem(5, "Plastic Continuous"))
+        self.futuresItems.append(FuturesItem(6, "Polypropylene Continuous"))
+        self.futuresItems.append(FuturesItem(7, "Soybean Oil Continuous"))
+        self.futuresItems.append(FuturesItem(8, "Corn Continuous"))
+        self.futuresItems.append(FuturesItem(9, "Soybean No.1 Continuous"))
+        self.futuresItems.append(FuturesItem(10, "Styrene Continuous AC"))
+        self.futuresItems.append(FuturesItem(11, "PTA Continuous"))
+        self.futuresItems.append(FuturesItem(12, "Rapeseed Oil Continuous"))
+        self.futuresItems.append(FuturesItem(13, "Rapeseed Meal Continuous"))
+        self.futuresItems.append(FuturesItem(14, "Sugar Continuous"))
+        self.futuresItems.append(FuturesItem(15, "Cotton Continuous"))
+        self.futuresItems.append(FuturesItem(16, "Methanol Continuous"))
+        self.futuresItems.append(FuturesItem(17, "Glass Continuous"))
+        self.futuresItems.append(FuturesItem(18, "Red Date Continuous"))
+        self.futuresItems.append(FuturesItem(19, "Soda Ash Continuous"))
+        self.futuresItems.append(FuturesItem(20, "Rebar Continuous"))
+        self.futuresItems.append(FuturesItem(21, "Pulp Continuous"))
+
+    def getFuturesItems(self):
+        return self.futuresItems
+
+    def startMonitoring(self):
+        if self.monitoringThread and self.monitoringThread.is_alive():
+            return
+
+        self.stopRequested = False
+        self.monitoringThread = threading.Thread(target=self.monitoringLoop)
+        self.monitoringThread.daemon = True
+        self.monitoringThread.start()
+
+    def stopMonitoring(self):
+        self.stopRequested = True
+        if self.monitoringThread and self.monitoringThread.is_alive():
+            self.monitoringThread.join(timeout=1.0)
+
+    # Get real-time price using akshare (simulated with random numbers here)
+    def getRealTimePrice(self, symbol):
+        # Actual application should use akshare to get real price
+        # Using random numbers to simulate price fluctuations here
+        return 3000 + random.randint(0, 5000) / 10.0
+
+    def monitoringLoop(self):
+        while not self.stopRequested:
+            for item in self.futuresItems:
+                # Update current price
+                item.currentPrice = self.getRealTimePrice(item.name)
+
+                # Price monitoring
+                if item.priceMonitorEnabled and abs(item.currentPrice - item.monitorPrice) <= 2.0:
+                    item.status = "Price Alert"
+                    item.statusColor = Qt.red
+                # ATR monitoring
+                elif item.atrMonitorEnabled:
+                    atr = ATRCalculator.calculateATR(item.name)
+                    # Judge based on ATR value and direction
+                    atrCondition = (item.atrDirection == "Long" and atr > 20.0) or \
+                                  (item.atrDirection == "Short" and atr < 10.0)
+
+                    if atrCondition:
+                        item.status = "ATR Alert"
+                        item.statusColor = Qt.blue
+                # Pattern monitoring
+                elif item.patternMonitorEnabled:
+                    if PatternRecognizer.recognizePattern(item.name, item.patternDirection):
+                        item.status = "Pattern Alert"
+                        item.statusColor = Qt.green
+                else:
+                    item.status = "Normal"
+                    item.statusColor = Qt.black
+
+            self.dataUpdated.emit()
+
+            # Update interval
+            time.sleep(60)
+
+# Login Window Class
+class LoginWindow(QDialog):
+    loginSuccess = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Login")
+        self.setFixedSize(300, 200)
+
+        # Create layout
+        mainLayout = QVBoxLayout(self)
+
+        # Add username and password input fields
+        usernameLabel = QLabel("Username:", self)
+        self.usernameEdit = QLineEdit(self)
+
+        passwordLabel = QLabel("Password:", self)
+        self.passwordEdit = QLineEdit(self)
+        self.passwordEdit.setEchoMode(QLineEdit.Password)
+
+        # Add login button
+        loginButton = QPushButton("Login", self)
+        loginButton.clicked.connect(self.login)
+
+        # Add widgets to layout
+        mainLayout.addWidget(usernameLabel)
+        mainLayout.addWidget(self.usernameEdit)
+        mainLayout.addWidget(passwordLabel)
+        mainLayout.addWidget(self.passwordEdit)
+        mainLayout.addStretch()
+        mainLayout.addWidget(loginButton)
+
+        # Set default values for testing
+        self.usernameEdit.setText("admin")
+        self.passwordEdit.setText("admin")
+
+    def login(self):
+        username = self.usernameEdit.text()
+        password = self.passwordEdit.text()
+
+        # Simple authentication (should connect to database or other authentication method in actual application)
+        if username == "admin" and password == "admin":
+            self.accept()
+            self.loginSuccess.emit()
+        else:
+            QMessageBox.warning(self, "Login Failed", "Invalid username or password")
+
+# Main Window Class
+class MainWindow(QMainWindow):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Futures Price Monitoring Software")
+        self.setMinimumSize(1000, 600)
+
+        # Initialize data manager
+        self.dataManager = DataManager()
+        self.dataManager.initFuturesItems()
+
+        # Create central widget and layout
+        centralWidget = QWidget(self)
+        self.setCentralWidget(centralWidget)
+
+        mainLayout = QVBoxLayout(centralWidget)
+
+        # Create table
+        self.createTable()
+
+        # Add to layout
+        mainLayout.addWidget(self.tableWidget)
+
+        # Connect data update signal
+        self.dataManager.dataUpdated.connect(self.updateTableData)
+
+        # Start monitoring thread
+        self.dataManager.startMonitoring()
+
+    def createTable(self):
+        self.tableWidget = QTableWidget(self)
+        self.tableWidget.setColumnCount(10)
+        self.tableWidget.setHorizontalHeaderLabels(["ID", "Symbol", "Current Price", "Monitor Price", "Price Monitor",
+                                              "ATR Direction", "ATR Monitor", "Pattern Direction", "Pattern Monitor",
+                                              "Status"])
+
+        # Set table properties
+        header = self.tableWidget.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Stretch)
+        self.tableWidget.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.tableWidget.setSelectionBehavior(QAbstractItemView.SelectRows)
+
+        # Set row count
+        self.tableWidget.setRowCount(len(self.dataManager.getFuturesItems()))
+
+        # Initialize table content
+        for i, item in enumerate(self.dataManager.getFuturesItems()):
+            # ID
+            idItem = QTableWidgetItem(str(item.id))
+            self.tableWidget.setItem(i, 0, idItem)
+
+            # Symbol
+            nameItem = QTableWidgetItem(item.name)
+            self.tableWidget.setItem(i, 1, nameItem)
+
+            # Current Price
+            priceItem = QTableWidgetItem("{0:.2f}".format(item.currentPrice))
+            self.tableWidget.setItem(i, 2, priceItem)
+
+            # Monitor Price
+            monitorPriceEdit = QLineEdit("{0:.2f}".format(item.monitorPrice))
+            self.tableWidget.setCellWidget(i, 3, monitorPriceEdit)
+            monitorPriceEdit.textChanged.connect(lambda text, row=i: self.onMonitorPriceChanged(text, row))
+
+            # Price Monitor Switch
+            priceMonitorCheck = QCheckBox()
+            priceMonitorCheck.setChecked(item.priceMonitorEnabled)
+            self.tableWidget.setCellWidget(i, 4, priceMonitorCheck)
+            priceMonitorCheck.stateChanged.connect(lambda state, row=i: self.onPriceMonitorChanged(state, row))
+
+            # ATR Direction
+            atrDirectionCombo = QComboBox()
+            atrDirectionCombo.addItems(["Long", "Short"])
+            atrDirectionCombo.setCurrentText(item.atrDirection)
+            self.tableWidget.setCellWidget(i, 5, atrDirectionCombo)
+            atrDirectionCombo.currentTextChanged.connect(lambda text, row=i: self.onAtrDirectionChanged(text, row))
+
+            # ATR Monitor Switch
+            atrMonitorCheck = QCheckBox()
+            atrMonitorCheck.setChecked(item.atrMonitorEnabled)
+            self.tableWidget.setCellWidget(i, 6, atrMonitorCheck)
+            atrMonitorCheck.stateChanged.connect(lambda state, row=i: self.onAtrMonitorChanged(state, row))
+
+            # Pattern Direction
+            patternDirectionCombo = QComboBox()
+            patternDirectionCombo.addItems(["Long", "Short"])
+            patternDirectionCombo.setCurrentText(item.patternDirection)
+            self.tableWidget.setCellWidget(i, 7, patternDirectionCombo)
+            patternDirectionCombo.currentTextChanged.connect(lambda text, row=i: self.onPatternDirectionChanged(text, row))
+
+            # Pattern Monitor Switch
+            patternMonitorCheck = QCheckBox()
+            patternMonitorCheck.setChecked(item.patternMonitorEnabled)
+            self.tableWidget.setCellWidget(i, 8, patternMonitorCheck)
+            patternMonitorCheck.stateChanged.connect(lambda state, row=i: self.onPatternMonitorChanged(state, row))
+
+            # Status
+            statusItem = QTableWidgetItem(item.status)
+            statusItem.setForeground(item.statusColor)
+            self.tableWidget.setItem(i, 9, statusItem)
+
+    def onMonitorPriceChanged(self, text, row):
+        try:
+            value = float(text)
+            self.dataManager.getFuturesItems()[row].monitorPrice = value
+        except ValueError:
+            pass
+
+    def onPriceMonitorChanged(self, state, row):
+        self.dataManager.getFuturesItems()[row].priceMonitorEnabled = (state == Qt.Checked)
+
+    def onAtrDirectionChanged(self, text, row):
+        self.dataManager.getFuturesItems()[row].atrDirection = text
+
+    def onAtrMonitorChanged(self, state, row):
+        self.dataManager.getFuturesItems()[row].atrMonitorEnabled = (state == Qt.Checked)
+
+    def onPatternDirectionChanged(self, text, row):
+        self.dataManager.getFuturesItems()[row].patternDirection = text
+
+    def onPatternMonitorChanged(self, state, row):
+        self.dataManager.getFuturesItems()[row].patternMonitorEnabled = (state == Qt.Checked)
+
+    def updateTableData(self):
+        for i, item in enumerate(self.dataManager.getFuturesItems()):
+            # Update current price
+            priceItem = self.tableWidget.item(i, 2)
+            if priceItem:
+                priceItem.setText("{0:.2f}".format(item.currentPrice))
+
+            # Update current status
+            statusItem = self.tableWidget.item(i, 9)
+            if statusItem:
+                statusItem.setText(item.status)
+                statusItem.setForeground(item.statusColor)
+
+# Main function
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+
+    # Show login window
+    loginWindow = LoginWindow()
+    if loginWindow.exec_() != QDialog.Accepted:
+        sys.exit()
+
+    # Show main window
+    mainWindow = MainWindow()
+    mainWindow.show()
+
+    sys.exit(app.exec_())

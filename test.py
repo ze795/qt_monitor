@@ -5,11 +5,12 @@ import random
 import datetime
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QTableWidget, QTableWidgetItem, QPushButton,
                             QVBoxLayout, QHBoxLayout, QWidget, QLabel, QLineEdit, QComboBox,
-                            QMessageBox, QCheckBox, QDialog, QHeaderView, QAbstractItemView)
+                            QMessageBox, QCheckBox, QDialog, QHeaderView, QAbstractItemView,
+                            QToolBar, QAction)
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject
 from PyQt5.QtGui import QColor
 
-from data import ATRCalculator
+from data import ATRCalculator, getRealTimeP
 from typing import List, Dict, Tuple, Optional
 
 # Futures data structure
@@ -48,28 +49,28 @@ class DataManager(QObject):
 
     def initFuturesItems(self):
         self.futuresItems = []
-        self.futuresItems.append(FuturesItem(0, "PVC Continuous"))
-        self.futuresItems.append(FuturesItem(1, "Palm Oil Continuous"))
-        self.futuresItems.append(FuturesItem(2, "Soybean No.2 Continuous"))
-        self.futuresItems.append(FuturesItem(3, "Soybean Meal Continuous"))
-        self.futuresItems.append(FuturesItem(4, "Iron Ore Continuous"))
-        self.futuresItems.append(FuturesItem(5, "Plastic Continuous"))
-        self.futuresItems.append(FuturesItem(6, "Polypropylene Continuous"))
-        self.futuresItems.append(FuturesItem(7, "Soybean Oil Continuous"))
-        self.futuresItems.append(FuturesItem(8, "Corn Continuous"))
-        self.futuresItems.append(FuturesItem(9, "Soybean No.1 Continuous"))
-        self.futuresItems.append(FuturesItem(10, "Styrene Continuous AC"))
-        self.futuresItems.append(FuturesItem(11, "PTA Continuous"))
-        self.futuresItems.append(FuturesItem(12, "Rapeseed Oil Continuous"))
-        self.futuresItems.append(FuturesItem(13, "Rapeseed Meal Continuous"))
-        self.futuresItems.append(FuturesItem(14, "Sugar Continuous"))
-        self.futuresItems.append(FuturesItem(15, "Cotton Continuous"))
-        self.futuresItems.append(FuturesItem(16, "Methanol Continuous"))
-        self.futuresItems.append(FuturesItem(17, "Glass Continuous"))
-        self.futuresItems.append(FuturesItem(18, "Red Date Continuous"))
-        self.futuresItems.append(FuturesItem(19, "Soda Ash Continuous"))
-        self.futuresItems.append(FuturesItem(20, "Rebar Continuous"))
-        self.futuresItems.append(FuturesItem(21, "Pulp Continuous"))
+        self.futuresItems.append(FuturesItem(0, "PVC Continuous", "V0"))
+        self.futuresItems.append(FuturesItem(1, "zonglv Continuous", "P0"))
+        self.futuresItems.append(FuturesItem(2, "Soybean No.2 Continuous", "B0"))
+        self.futuresItems.append(FuturesItem(3, "Soybean Meal Continuous", "M0"))
+        self.futuresItems.append(FuturesItem(4, "tiekuang Continuous", "I0"))
+        self.futuresItems.append(FuturesItem(5, "Plastic Continuous", "L0"))
+        self.futuresItems.append(FuturesItem(6, "jubingxi Continuous", "PP0"))
+        self.futuresItems.append(FuturesItem(7, "Soybean Oil Continuous", "Y0"))
+        self.futuresItems.append(FuturesItem(8, "yumi Continuous", "C0"))
+        self.futuresItems.append(FuturesItem(9, "Soybean No.1 Continuous", "A0"))
+        self.futuresItems.append(FuturesItem(10, "benyixi Continuous", "EB0"))
+        self.futuresItems.append(FuturesItem(11, "PTA Continuous", "TA0"))
+        self.futuresItems.append(FuturesItem(12, "caiyou Continuous", "OI0"))
+        self.futuresItems.append(FuturesItem(13, "caipo Continuous", "RM0"))
+        self.futuresItems.append(FuturesItem(14, "Sugar Continuous", "SR0"))
+        self.futuresItems.append(FuturesItem(15, "mianhua Continuous", "CF0"))
+        self.futuresItems.append(FuturesItem(16, "jiachun Continuous", "MA0"))
+        self.futuresItems.append(FuturesItem(17, "Glass Continuous", "FG0"))
+        self.futuresItems.append(FuturesItem(18, "hongzao Continuous", "CJ0"))
+        self.futuresItems.append(FuturesItem(19, "chunjian Continuous", "SA0"))
+        self.futuresItems.append(FuturesItem(20, "luowen Continuous", "RB0"))
+        self.futuresItems.append(FuturesItem(21, "zhijiang Continuous", "SP0"))
 
     def getFuturesItems(self):
         return self.futuresItems
@@ -88,18 +89,11 @@ class DataManager(QObject):
         if self.monitoringThread and self.monitoringThread.is_alive():
             self.monitoringThread.join(timeout=1.0)
 
-    # Get real-time price using akshare (simulated with random numbers here)
-    def getRealTimePrice(self, symbol):
-        # Actual application should use akshare to get real price
-        # Using random numbers to simulate price fluctuations here
-        # return 3000 + random.randint(0, 5000) / 10.0
-        return 3442
-
     def monitoringLoop(self):
         while not self.stopRequested:
             for item in self.futuresItems:
                 # Update current price and datatable
-                item.currentPrice = self.getRealTimePrice(item.name)
+                item.currentPrice = getRealTimeP(item.symbol)
 
                 # Price monitoring
                 if item.priceMonitorEnabled and abs(item.currentPrice - item.monitorPrice) <= 2.0:
@@ -110,7 +104,7 @@ class DataManager(QObject):
                     # atr = ATRCalculator.calculateATR(item.name)
                     # Judge based on ATR value and direction
                     atrCondition = ATRCalculator.atr_cond(item.symbol, item.atrDirection)
-
+                    
                     if atrCondition:
                         item.status = "ATR Alert"
                         item.statusColor = Qt.blue
@@ -126,7 +120,7 @@ class DataManager(QObject):
             self.dataUpdated.emit()
 
             # Update interval
-            time.sleep(60)
+            time.sleep(20)
 
 # Login Window Class
 class LoginWindow(QDialog):
@@ -180,18 +174,22 @@ class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Futures Price Monitoring Software")
-        self.setMinimumSize(1000, 600)
+        self.resize(1000, 600)
 
         # Initialize data manager
         self.dataManager = DataManager()
         self.dataManager.initFuturesItems()
 
+        self.columnsHidden = False
+        
         # Create central widget and layout
         centralWidget = QWidget(self)
         self.setCentralWidget(centralWidget)
 
         mainLayout = QVBoxLayout(centralWidget)
 
+        self.createToolBar()
+        
         # Create table
         self.createTable()
 
@@ -204,20 +202,40 @@ class MainWindow(QMainWindow):
 
         # Start monitoring thread
         self.dataManager.startMonitoring()
+     
+    def createToolBar(self):
+        toolBar = QToolBar("Tool Bar", self)
+        self.addToolBar(toolBar)
 
+        toggleColumnsAction = QAction("Show/Hide Columns", self)
+        toggleColumnsAction.setStatusTip("Toggle display of columns (Only show first 3 columns)")
+        toggleColumnsAction.triggered.connect(self.toggleColumns)
+        toolBar.addAction(toggleColumnsAction)
+    
+    def toggleColumns(self):
+        if self.columnsHidden:
+            for col in range(10):
+                self.tableWidget.setColumnHidden(col, False)
+            self.columnsHidden = False
+            # self.setMinimumSize(1000, 600)
+        else:
+            for col in range(3, 10):
+                self.tableWidget.setColumnHidden(col, True)
+            self.columnsHidden = True
+            self.resize(200, 600)
+    
     def createTable(self):
         self.tableWidget = QTableWidget(self)
-        self.tableWidget.setColumnCount(10)
+        self.tableWidget.setColumnCount(9)
         # self.tableWidget.setHorizontalHeaderLabels(["ID", "Symbol", "Current Price", "Monitor Price", "Price Monitor",
         #                                       "ATR Direction", "ATR Monitor", "Pattern Direction", "Pattern Monitor",
         #                                       "Status"])
-        self.tableWidget.setHorizontalHeaderLabels(["Status", "Symbol", "Current Price", "Monitor Price", "Price Monitor",
-                                              "ATR Direction", "ATR Monitor", "Pattern Direction", "Pattern Monitor",
-                                              "ID"])
+        self.tableWidget.setHorizontalHeaderLabels(["Status", "Symbol", "Current P", "Monitor P", "P Monitor",
+                                              "ATR Dir", "ATR Monitor", "Pattern Dir", "Pattern Monitor"])
 
         # Set table properties
         header = self.tableWidget.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.Stretch)
+        header.setSectionResizeMode(QHeaderView.Interactive)
         self.tableWidget.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.tableWidget.setSelectionBehavior(QAbstractItemView.SelectRows)
 
@@ -277,8 +295,8 @@ class MainWindow(QMainWindow):
             patternMonitorCheck.stateChanged.connect(lambda state, row=i: self.onPatternMonitorChanged(state, row))
 
             # ID
-            idItem = QTableWidgetItem(str(item.id))
-            self.tableWidget.setItem(i, 9, idItem)
+            # idItem = QTableWidgetItem(str(item.id))
+            # self.tableWidget.setItem(i, 9, idItem)
 
 
     def onMonitorPriceChanged(self, text, row):
